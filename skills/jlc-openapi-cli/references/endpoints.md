@@ -1,146 +1,144 @@
 # 接口目录
 
-> 由 `npm run gen:endpoints` 配套脚本生成，共 111 个接口（110 个官方文档 + 1 个兼容接口）。
+> 由 `npm run gen:endpoints` 配套脚本生成，人工补充接口描述。共 111 个接口（110 个官方文档 + 1 个兼容接口）。
 > 详细参数用 `jlc-openapi-cli list <路径>` 或 `list <路径> --json` 查看。
 
-
 ## PCB业务 (14)
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/pcb/onlinePrice/get|在线计价|何时：用户问"打板多少钱/报价/估价/多方案比价"时调用｜要点：orderTechnical 工艺对象必填（板材/层数/长宽cm/板厚mm/数量/测试/表面处理）｜约束：返回参考价，最终价以工程审核为准；特殊板材（铝基/FPC/罗杰斯/铜基/铁氟龙）仅可计价，下单走网页端｜频控：较宽松，适合比价试算，具体限额以控制台为准|57| |
+|POST|/pcb/order/backOrder/create|创建返单|何时：用户说"照旧再做一批/返单/复购"时调用｜要点：customerOrderId+orderType 指向原单，但工艺、联系人、收货信息仍须全量重传｜约束：写接口（产生真实交易，执行前建议向用户确认）；；仅 FR-4(1) 可 API 下单｜前置：已有可复购的历史订单｜频控：低频调用，具体限额以控制台为准|55| |
+|POST|/pcb/order/create|创建订单|何时：用户要"下单/投板/做板/打样"时调用｜要点：pcbFileUrl 公网文件 URL+fileName，工艺/联系人/收货三对象必填，自动扣款字段（isAdvancePayment/advancePayment 以文档为准，传 false 不自动扣款）｜约束：写接口（产生真实交易，执行前建议向用户确认）；；仅 FR-4(1) 可 API 下单（FPC/铝基/罗杰斯/铜基/铁氟龙仅计价、下单走网页端）；无沙箱，测试也产生真实订单｜频控：低频调用，具体限额以控制台为准|103| |
+|POST|/pcb/order/get|查询订单|何时：用户问"这单怎么样/订单状态/花了多少钱"时调用｜要点：customerOrderId+orderType（examples 样板/batch 小批量，须与下单一致）｜约束：返回的 produceCode（Y 开头生产单号）不可当查询入参；orderStatus 0取消~5已发货｜频控：较宽松，具体限额以控制台为准|2| |
+|POST|/pcb/order/getExpressSchedule|查询订单物流轨迹|何时：用户问"发货了吗/到哪了/签收没"时调用｜要点：customerOrderId+orderType，返回快递单号与轨迹节点｜约束：仅发货后有轨迹｜频控：紧张，禁止轮询刷物流；节点通知改用消息订阅推送，具体限额以控制台为准|2| |
+|POST|/pcb/order/getList|批量查询订单|何时：用户要"把这几单都查一下/批量对账"时调用｜要点：订单 ID 列表+orderType 批量查｜约束：返回结构同单查；produceCode 不可当查询入参；批量条数上限以文档为准｜频控：较宽松，具体限额以控制台为准|2| |
+|POST|/pcb/order/getListBySerialCode|根据序列码查询订单|何时：只有板上序列码/二维码明码，用户说"帮我查这是哪单"时调用｜要点：入参序列码｜约束：只收序列码明码；路由以官方文档为准（本路径或查询订单按 serialCode 区分）｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/pcb/order/getOrderDownloadFile|查询订单文件下载信息|何时：用户要"下载下单时传的原文件/Gerber 存档"时调用｜要点：按订单查生产文件下载地址｜约束：返回的下载地址有时效，注意过期｜频控：极紧张，仅够低频归档，禁止批量抓取，具体限额以控制台为准|4| |
+|POST|/pcb/order/getOrderPageList|分页查询订单（兼容）|何时：用户要"导出订单/最近订单有哪些/定时拉单对账"时调用｜要点：orderType+下单起止时间+pageNum/pageSize，orderByFlag 降序、queryFilterFlag 过滤取消单｜约束：时间跨度≤365 天、单页≤100 条；只返回单号清单，详情用查询/批量接口｜频控：较宽松，适合轮询拉单，具体限额以控制台为准|8|兼容、严格校验|
+|POST|/pcb/order/getOrderPhysicalPicture|查询订单实物图|何时：用户要"看板子实物照片"时调用｜要点：customerOrderId+orderType｜约束：返回成品实物照片，不是 CAM 预览图/图纸渲染图｜频控：较宽松，具体限额以控制台为准|2| |
+|POST|/pcb/order/getOrderPriceDetails|查询订单明细价格|何时：用户问"这单钱怎么算的/接口口径费用明细"时调用｜要点：customerOrderId，返回板费/工程费/测试费/加急/运费等分项｜约束：接口下单价口径；网页价对账改用 web 端明细价格接口，勿混口径｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/pcb/order/getOrderSteelMeshSpecificationDetails|PCB查询钢网规格信息|何时：下单要配钢网、或用户问"钢网规格/钢网多少钱"时调用｜要点：空 body 查询，返回钢网规格目录与 steelmeshSellingPriceAccessId｜约束：下单带钢网须先查此规格 AccessId 填入下单参数｜频控：较宽松，具体限额以控制台为准|0| |
+|POST|/pcb/order/getOrderWebPriceDetails|查询订单web端明细价格|何时：对账要"核对接口价与网页价差异/网页口径费用"时调用｜要点：customerOrderId，返回网页口径全量费用（含钢网/SMT 费/减免明细）｜约束：与接口明细价格口径不同，对账固定同一口径｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/pcb/order/progress/get|查询订单生产进度|何时：用户问"我的板做到哪了/什么时候好"时调用｜要点：customerOrderId+orderType，返回当前工序、各工艺开始时间与交货时间｜约束：orderStatus 为字符串枚举（waitcarrier 已投厂/complete_send 已发货等），与查询订单的数字状态不同｜频控：较宽松，适合轮询跟进，具体限额以控制台为准|2| |
 
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/pcb/onlinePrice/get` | 在线计价 | 57 |  |
-| POST | `/pcb/order/backOrder/create` | 创建返单 | 55 |  |
-| POST | `/pcb/order/create` | 创建订单 | 103 |  |
-| POST | `/pcb/order/get` | 查询订单 | 2 |  |
-| POST | `/pcb/order/getExpressSchedule` | 查询订单物流轨迹 | 2 |  |
-| POST | `/pcb/order/getList` | 批量查询订单 | 2 |  |
-| POST | `/pcb/order/getListBySerialCode` | 根据序列码查询订单 | 1 |  |
-| POST | `/pcb/order/getOrderDownloadFile` | 查询订单文件下载信息 | 4 |  |
-| POST | `/pcb/order/getOrderPageList` | 分页查询订单（兼容） | 8 | 兼容、严格校验 |
-| POST | `/pcb/order/getOrderPhysicalPicture` | 查询订单实物图 | 2 |  |
-| POST | `/pcb/order/getOrderPriceDetails` | 查询订单明细价格 | 1 |  |
-| POST | `/pcb/order/getOrderSteelMeshSpecificationDetails` | PCB查询钢网规格信息 | 0 |  |
-| POST | `/pcb/order/getOrderWebPriceDetails` | 查询订单web端明细价格 | 1 |  |
-| POST | `/pcb/order/progress/get` | 查询订单生产进度 | 2 |  |
+
+
+
 
 ## SMT业务 (19)
-
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/smtOpenApi/componentMail/addCustomerPackageDetail` | 元器件添加至待邮寄包裹 | 2 |  |
-| POST | `/smtOpenApi/componentMail/applyComponent` | 补全元器件信息 | 8 |  |
-| POST | `/smtOpenApi/componentMail/deleteMailPackageDetail` | 移除指定包裹详情信息 | 1 |  |
-| POST | `/smtOpenApi/componentMail/saveMailInfo` | 保存邮寄信息 | 4 |  |
-| POST | `/smtOpenApi/componentMail/saveMailPackage` | 保存邮寄包裹信息 | 4 |  |
-| POST | `/smtOpenApi/componentMail/selectCustomerPackageDetail` | 查询元器件待邮寄包裹详情 | 1 |  |
-| POST | `/smtOpenApi/componentMail/selectMailComponentNumberInfo` | 查询邮寄元器件相关数量 | 1 |  |
-| POST | `/smtOpenApi/componentMail/selectWaitMailList` | 查询元器件待邮寄列表 | 2 |  |
-| POST | `/smtOpenApi/componentMail/selectWaitPackageList` | 查询元器件待邮寄包裹 | 0 |  |
-| POST | `/smtOpenApi/componentMail/toMailInit` | 元器件去邮寄初始化 | 4 |  |
-| POST | `/smtOpenApi/componentMail/updateMailPackageDetail` | 修改包裹详情信息 | 4 |  |
-| POST | `/smtOpenApi/componentMail/updateMailPackageInfo` | 修改包裹信息 | 2 |  |
-| POST | `/smtOpenApi/componentMail/validExpressNumber` | 校验快递单号 | 1 |  |
-| POST | `/smtOpenApi/order/addComponentMail` | 添加元器件邮寄 | 4 |  |
-| POST | `/smtOpenApi/order/selectComponentInfo` | SMT 查询物料信息 | 3 |  |
-| POST | `/smtOpenApi/order/selectProduceScheduleVo` | 查询SMT订单生产工序 | 1 |  |
-| POST | `/smtOpenApi/order/selectSmtOrderInfo` | 查询SMT订单信息 | 1 |  |
-| POST | `/smtOpenApi/smtComponent/selectComponentInfoByCodes` | 查询元器件信息 | 1 |  |
-| POST | `/smtOpenApi/smtComponent/selectPrivateStockPage` | SMT查询客户私有库元器件信息 | 5 |  |
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/smtOpenApi/componentMail/addCustomerPackageDetail|元器件添加至待邮寄包裹|何时：贴片剩余料退回闭环"加料进包裹"步——把要退回的元器件加进待邮寄包裹时调用｜要点：2 参，向指定包裹添加元器件明细｜约束：写接口（产生真实交易，执行前建议向用户确认）；须先建好待邮寄包裹；加料数量不得低于最小邮寄数量；无正式编号的料先补全信息拿临时 D 编号｜频控：默认较宽松，具体限额以控制台为准|2| |
+|POST|/smtOpenApi/componentMail/applyComponent|补全元器件信息|何时：贴片剩余料退回时，料没有正式 C 编号（客供/杂料）需用临时 D 编号邮寄才调用｜要点：8 参补全元器件信息，产出临时 D 编号供加包裹用｜约束：写接口（产生真实交易，执行前建议向用户确认）；仅用于无正式编号的元器件，有 C 编号的直接加包裹｜频控：默认较宽松，具体限额以控制台为准|8| |
+|POST|/smtOpenApi/componentMail/deleteMailPackageDetail|移除指定包裹详情信息|何时：贴片剩余料退回闭环里要从待邮寄包裹拿掉某项元器件时调用｜要点：1 参指定待移除的包裹明细｜约束：写接口（产生真实交易，执行前建议向用户确认）；仅移除包裹内明细；操作后用"查询元器件待邮寄包裹详情"复核｜频控：默认较宽松，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/componentMail/saveMailInfo|保存邮寄信息|何时：贴片剩余料退回闭环"保存"步——保存邮寄单信息（收件信息等）时调用｜要点：4 参提交邮寄单信息｜约束：写接口（产生真实交易，执行前建议向用户确认）；流程顺序 初始化→加包裹→保存→校验快递单号→查询数量；寄出前先校验快递单号｜频控：默认较宽松，具体限额以控制台为准|4| |
+|POST|/smtOpenApi/componentMail/saveMailPackage|保存邮寄包裹信息|何时：贴片剩余料退回闭环"加包裹"步——新建/保存待邮寄包裹时调用｜要点：4 参生成待邮寄包裹，拿到包裹后才能往里加料｜约束：写接口（产生真实交易，执行前建议向用户确认）；须先走"元器件去邮寄初始化"；建好后用"查询元器件待邮寄包裹"核对｜频控：默认较宽松，具体限额以控制台为准|4| |
+|POST|/smtOpenApi/componentMail/selectCustomerPackageDetail|查询元器件待邮寄包裹详情|何时：核对退回包裹里装了哪些料、各多少时调用｜要点：1 参查指定待邮寄包裹内的元器件明细与数量｜约束：加料/改料/移除后用它复核包裹内容，与实际寄出一致再提交｜频控：较宽松适合低频查询，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/componentMail/selectMailComponentNumberInfo|查询邮寄元器件相关数量|何时：退回前核"这颗料能退多少/可邮寄量"时调用｜要点：componentCodeList 传 C 编号列表，返回库存/最小邮寄数量/单价｜约束：加进包裹的数量不得低于最小邮寄数量；退回流程入口见"元器件去邮寄初始化"｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/componentMail/selectWaitMailList|查询元器件待邮寄列表|何时：用户问"哪些剩余料可以退回"时调用｜要点：2 参查待邮寄元器件清单（可退候选料）｜约束：返回的是候选清单，实际可退数量以"查询邮寄元器件相关数量"口径为准｜频控：较宽松适合低频查询，具体限额以控制台为准|2| |
+|POST|/smtOpenApi/componentMail/selectWaitPackageList|查询元器件待邮寄包裹|何时：查已建好的待邮寄包裹列表时调用（如问"退回包裹建到哪了"）｜要点：0 入参，返回当前客户全部待邮寄包裹｜频控：较宽松适合低频查询，具体限额以控制台为准|0| |
+|POST|/smtOpenApi/componentMail/toMailInit|元器件去邮寄初始化|何时：用户问"贴片剩余料怎么退回/寄回"时调用——贴片剩余料退回闭环第一步｜要点：4 参初始化邮寄单；全流程顺序：初始化→加包裹→保存→校验快递单号→查询数量｜约束：写接口（产生真实交易，执行前建议向用户确认）；后续建包裹/加料都依赖它产出的邮寄单，不可跳过直接提交｜频控：默认较宽松，具体限额以控制台为准|4| |
+|POST|/smtOpenApi/componentMail/updateMailPackageDetail|修改包裹详情信息|何时：要改退回包裹内某项元器件的数量等明细时调用｜要点：4 参定位并修改包裹明细｜约束：写接口（产生真实交易，执行前建议向用户确认）；数量不得低于最小邮寄数量；改完用"查询元器件待邮寄包裹详情"复核｜频控：默认较宽松，具体限额以控制台为准|4| |
+|POST|/smtOpenApi/componentMail/updateMailPackageInfo|修改包裹信息|何时：要改包裹级信息（包裹名称/快递方式等）时调用｜要点：2 参更新包裹属性｜约束：写接口（产生真实交易，执行前建议向用户确认）；区别于"修改包裹详情信息"——本接口改包裹本身，明细改动走修改包裹详情｜频控：默认较宽松，具体限额以控制台为准|2| |
+|POST|/smtOpenApi/componentMail/validExpressNumber|校验快递单号|何时：贴片剩余料寄出前核对快递单号是否有效时调用（退回闭环"校验"步）｜要点：1 参传快递单号校验有效性｜约束：校验通过再保存提交，无效单号会导致退回失败｜频控：默认较宽松，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/order/addComponentMail|添加元器件邮寄|何时：贴片剩余料退回闭环"发起邮寄"步——提交元器件寄回时调用｜要点：4 参发起元器件邮寄，与初始化产出的邮寄单关联｜约束：写接口（产生真实交易，执行前建议向用户确认）；须先"元器件去邮寄初始化"；无正式编号的料先补全元器件信息拿临时 D 编号｜频控：默认较宽松，具体限额以控制台为准|4| |
+|POST|/smtOpenApi/order/selectComponentInfo|SMT 查询物料信息|何时：用户问"SMT 用什么料/BOM 怎么找嘉立创料号"时调用｜要点：queryString 按型号/规格关键字模糊搜（如"10k"），分页返回 C 编号+封装规格+型号｜约束：结果是模糊匹配候选，选型需人工确认后再用于配单；本接口查料不查订单｜频控：较宽松适合低频查询，具体限额以控制台为准|3| |
+|POST|/smtOpenApi/order/selectProduceScheduleVo|查询SMT订单生产工序|何时：用户问"SMT 贴到哪道工序/贴片生产进度"时调用｜要点：1 参按 SMT 订单查各生产工序状态｜前置：先用"查询SMT订单信息"（传 PCB 客户订单 ID）换 SMT 订单再查｜频控：较宽松适合低频查询，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/order/selectSmtOrderInfo|查询SMT订单信息|何时：用户问"SMT 贴片订单/进度"时先用它换 SMT 订单——PCB↔SMT 订单映射入口｜要点：customerOrderId 传 PCB 客户订单 ID，返回 smtOrderAccessId/smtOrderCode｜约束：入参是 PCB 客户订单 ID，不是 SMT 单号、更不是 Y 开头生产单号（produceCode 不可当查询入参）｜频控：较宽松适合低频查询，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/smtComponent/selectComponentInfoByCodes|查询元器件信息|何时：用户报 C 编号问"这颗料什么参数/有货吗/什么价"时调用｜要点：componentCodeList 传 C 编号批量查，返回封装/品牌/库存/参数/阶梯售价｜约束：只收 C 编号不收型号（型号先用商品搜索换编号）；价格为参考价，以实际下单价为准｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/smtOpenApi/smtComponent/selectPrivateStockPage|SMT查询客户私有库元器件信息|何时：用户问"私有库/客供料还剩多少"时调用｜要点：pageNum/pageSize（1-200）+ keyWords 模糊/componentCode 精确/stockSource 筛选，返回库存/在途/占用/货值｜约束：pageSize 超 1-200 报错；stockSource 枚举 0-邮寄/1-嘉立创购买/2-立创商城购买，不传=全部｜频控：较宽松适合低频查询，具体限额以控制台为准|5| |
 
 ## 3DP业务 (21)
-
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/3dp-open/ask/getOPAskListByOrderAccessId` | 通过订单accessId 批量查询问客详情 | 1 |  |
-| POST | `/3dp-open/ask/getOPAskingAskList` | 查询当前客户近半个月问客中的记录接口 | 0 |  |
-| POST | `/3dp-open/ask/replyOPAsk` | 客户回复问客接口 | 2 |  |
-| POST | `/3dp-open/order/bindOPOrderBatch` | 3D打印订单绑定发货接口 | 1 |  |
-| POST | `/3dp-open/order/cancelOrderByOrderAccessId` | 取消订单 | 1 |  |
-| POST | `/3dp-open/order/checkMaterialSizeLimit` | 检查材料尺寸限制 | 5 |  |
-| GET | `/3dp-open/order/getAllEnableMaterialInfo` | 获取所有可用的材料信息 | 0 |  |
-| POST | `/3dp-open/order/getAvailableExpress` | 查询可用快递 | 25 |  |
-| POST | `/3dp-open/order/getCraft` | 查询材料颜色可用表处 | 1 |  |
-| POST | `/3dp-open/order/getExpressDetail` | 查询快递进度 | 1 |  |
-| POST | `/3dp-open/order/getModelDeliveryPrice` | 获取模型交期价格 | 19 |  |
-| POST | `/3dp-open/order/getOPAllEnableMaterialManual` | 查询材料介绍 | 0 |  |
-| POST | `/3dp-open/order/getOPProcessProgress` | 获取生产进度信息接口 | 2 |  |
-| POST | `/3dp-open/order/getOrderDetailByOrderAccessId` | 查询订单详情 | 1 |  |
-| POST | `/3dp-open/order/getOrderInfoListByPage` | 分页查询用户的订单信息 | 6 |  |
-| POST | `/3dp-open/order/getOrderProduceProgress` | 查询生产进度 | 2 |  |
-| POST | `/3dp-open/order/queryModelAnalysisResult` | 查询模型解析状态 | 1 |  |
-| POST | `/3dp-open/order/returnOrder` | 返单接口 | 4 |  |
-| POST | `/3dp-open/order/submitOrder` | 提交订单 | 51 |  |
-| POST | `/3dp-open/order/uploadModelFile` | 上传模型文件接口 | 2 | multipart |
-| POST | `/3dp-open/order/uploadNutFile` | 上传镶嵌螺母文件 | 2 | multipart |
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/3dp-open/ask/getOPAskListByOrderAccessId|通过订单accessId 批量查询问客详情|何时：跟进生产疑问（问客）时按订单查详情，用户问'工厂问了什么/有哪些要确认的'时调用｜要点：入参订单 accessId，返回该单问客记录与处理状态｜约束：仅能查本账号订单的问客｜前置：3DP 开放接口已开通（自动审核）｜ 频控：较宽松，问客以人工跟进为主，具体限额以控制台为准|1| |
+|POST|/3dp-open/ask/getOPAskingAskList|查询当前客户近半个月问客中的记录接口|何时：用户要'看看有没有待处理的生产疑问/待回复问客'时调用｜要点：无入参，返回当前客户处于'问客中'（待回复）的记录｜约束：硬窗口仅覆盖近半个月，超期记录查不到；问客久拖不回复会影响生产排期，须每日巡检｜前置：3DP 开放接口已开通（自动审核）｜ 频控：较宽松可低频巡检，具体限额以控制台为准|0| |
+|POST|/3dp-open/ask/replyOPAsk|客户回复问客接口|何时：回答工厂生产疑问、确认工艺方案（问客回复）时调用｜要点：带问客 ID 与回复内容提交｜约束：写接口（产生真实交易，执行前建议向用户确认）；；回复后问客状态变更且影响排产，复杂工艺确认建议同步客服｜前置：存在'问客中'记录（先查问客列表/详情拿问客 ID）｜ 频控：较宽松，具体限额以控制台为准|2| |
+|POST|/3dp-open/order/bindOPOrderBatch|3D打印订单绑定发货接口|何时：用户要把多个 3D 打印订单合并成一票发货时调用｜要点：传多个订单 accessId 绑定同批发货｜约束：写接口（产生真实交易，执行前建议向用户确认）；；绑定后物流口径合并，操作不可随意拆回，绑定前确认收货信息一致｜前置：参与绑定的订单均已生产完成可发货｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/cancelOrderByOrderAccessId|取消订单|何时：用户要取消 3D 打印订单时调用｜要点：入参订单 accessId｜约束：写接口（产生真实交易，不可逆，执行前建议向用户确认）；；已投产/已发货的单不一定可取消，费用按实际生产状态结算｜前置：先查订单详情确认当前状态｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/checkMaterialSizeLimit|检查材料尺寸限制|何时：下单前校验模型尺寸，用户问'这个大小能不能做/放得下吗'时调用｜要点：模型+目标材料（含尺寸参数），返回是否超出该材料的尺寸限制｜约束：尺寸上限按材料区分，超限须换材料或改模型重传｜前置：已上传模型且解析成功｜频控：宽松适合批量预检，具体限额以控制台为准|5| |
+|GET|/3dp-open/order/getAllEnableMaterialInfo|获取所有可用的材料信息|何时：用户问'能打什么材料/有哪些材料可选'时调用｜要点：无入参，返回当前可用材料清单（树脂/尼龙等，含材料 ID）｜ 约束：材料 ID 是询价/下单主参数，先取清单再选型｜前置：3DP 开放接口已开通（自动审核）｜ 频控：宽松，材料列表变动不频繁可缓存，具体限额以控制台为准|0| |
+|POST|/3dp-open/order/getAvailableExpress|查询可用快递|何时：下单或发货前确认快递方式，用户问'能发顺丰吗/有什么快递'时调用｜要点：按收货地址+商品信息查可用快递列表（入参较多，重点是地址与商品/订单维度）｜ 约束：可用快递随地址与产品变动，下单前需重新查询｜前置：已有订单或明确收货地址｜频控：宽松，具体限额以控制台为准|25| |
+|POST|/3dp-open/order/getCraft|查询材料颜色可用表处|何时：用户问'某材料有什么颜色/能不能喷砂喷漆'时调用｜要点：入参材料 ID，返回该材料可用的颜色与表面处理（表处）组合｜约束：颜色/表处受材料限制非全组合可选，询价下单参数必须从返回值中选｜前置：已获取材料列表｜频控：宽松可缓存，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/getExpressDetail|查询快递进度|何时：用户问"3D 打印订单快递到哪了"时调用｜要点：按订单查快递进度｜约束：仅发货后有轨迹；3DP 无物流推送事件，勿高频轮询｜频控：紧张勿轮询，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/getModelDeliveryPrice|获取模型交期价格|何时：用户问'3D 打印多少钱/报价/比价/几天能好'时调用（询价核心）｜ 要点：模型+材料+颜色+表处+数量/交期档，返回价格与交期｜约束：参考价，最终价以工程审核为准；交期随加急档位浮动；工艺参数须取自材料/表处接口返回值｜前置：已上传模型并解析通过、尺寸检查通过｜频控：宽松适合多方案比价，具体限额以控制台为准|19| |
+|POST|/3dp-open/order/getOPAllEnableMaterialManual|查询材料介绍|何时：用户问'这个材料怎么样/有什么特性/怎么选材料'时调用｜要点：无入参，返回全部启用材料的介绍与使用说明｜约束：偏选型参考文档，不含价格与交期｜前置：3DP 开放接口已开通（自动审核）｜ 频控：宽松，内容变动少可缓存，具体限额以控制台为准|0| |
+|POST|/3dp-open/order/getOPProcessProgress|获取生产进度信息接口|何时：查 3D 打印生产进度时调用（与 getOrderProduceProgress 近义，二选一差异以官方文档为准）｜要点：按订单查生产进度信息｜约束：两近义接口勿混调，分工以文档为准｜频控：较宽松，具体限额以控制台为准|2| |
+|POST|/3dp-open/order/getOrderDetailByOrderAccessId|查询订单详情|何时：用户问"3D 打印这单怎么样/订单详情"时调用｜要点：按订单 accessId 查详情（状态/模型/金额）｜约束：订单标识为 accessId（下单返回），非生产单号｜频控：较宽松，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/getOrderInfoListByPage|分页查询用户的订单信息|何时：拉 3D 打印订单列表对账/同步/台账，用户问'我最近的订单有哪些'时调用｜要点：按时间段+状态分页查询｜约束：分页拉取注意时间段跨度与单次条数上限以文档为准，勿一次拉全量｜前置：3DP 开放接口已开通（自动审核）｜ 频控：宽松适合定时同步，具体限额以控制台为准|6| |
+|POST|/3dp-open/order/getOrderProduceProgress|查询生产进度|何时：查 3D 打印订单生产进度时调用（与 getOPProcessProgress 近义，二选一差异以官方文档为准）｜要点：按订单查生产进度｜约束：两近义接口勿混调，分工以文档为准｜频控：较宽松，具体限额以控制台为准|2| |
+|POST|/3dp-open/order/queryModelAnalysisResult|查询模型解析状态|何时：上传模型后查解析结果，用户问'模型能不能打/有没有问题'时调用｜要点：入参模型 accessId，返回解析是否完成、是否可打印（壁厚/破面等问题）｜ 约束：解析有耗时，勿上传后立即密集轮询；解析不通过须改模型重新上传｜前置：已调用上传模型接口｜频控：宽松，具体限额以控制台为准|1| |
+|POST|/3dp-open/order/returnOrder|返单接口|何时：用户说'照上次那单再做一批/返单/复购'时调用｜要点：按历史订单信息再下一单（沿用原单模型与工艺）｜ 约束：写接口（产生真实交易，执行前建议向用户确认）；；工艺如有改动不能返单，须走正常询价下单链路｜前置：存在可返单的历史订单｜频控：宽松，具体限额以控制台为准|4| |
+|POST|/3dp-open/order/submitOrder|提交订单|何时：用户确认'就按这个下单/提交 3D 打印订单'时调用｜要点：模型 accessId+材料/颜色/表处+数量+收货地址+快递方式（51 参数，核心是模型与工艺组合）｜ 约束：写接口（产生真实交易，执行前建议向用户确认）；；提交即真实订单勿重复提交，改参须取消后重下｜前置：模型解析通过、尺寸检查通过、已询价确认、快递可用｜频控：宽松，具体限额以控制台为准|51| |
+|POST|/3dp-open/order/uploadModelFile|上传模型文件接口|何时：3D 打印报价/下单第一步，用户要'打个模型/报个价'时先调用｜要点：multipart/form-data 上传 STL 等 3D 模型文件，返回模型 accessId（后续解析/校验/询价/下单都用它）｜ 约束：multipart 上传；文件格式与大小上限以文档为准｜前置：3DP 开放接口已开通（自动审核）｜ 频控：日限额较宽裕，失败勿盲目重传刷量，具体以控制台为准|2| |
+|POST|/3dp-open/order/uploadNutFile|上传镶嵌螺母文件|何时：订单需要镶嵌螺母（嵌螺母工艺）时上传螺母文件｜要点：multipart/form-data 上传螺母相关文件（图纸/规格），供嵌螺母工序使用｜约束：multipart 上传；仅嵌螺母工艺订单需要｜前置：3DP 开放接口已开通（自动审核）｜ 频控：较宽松，具体限额以控制台为准|2| |
 
 ## 元器件&MRO (14)
-
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/lcsc/openapi/bom/result` | 查询BOM配单结果 | 1 |  |
-| POST | `/lcsc/openapi/bom/search` | 型号批量搜索 | 1 |  |
-| POST | `/lcsc/openapi/bom/submit` | 提交 BOM 配单 | 1 | multipart |
-| POST | `/lcsc/openapi/enquiry/create` | 创建询价单 | 4 |  |
-| POST | `/lcsc/openapi/enquiry/info` | 查询询价单 | 22 |  |
-| POST | `/lcsc/openapi/enquiry/pre/order` | 询价单预下单 | 24 |  |
-| POST | `/lcsc/openapi/order/detail` | 立创商城-订单详情接口 | 1 |  |
-| POST | `/lcsc/openapi/order/list` | 立创商城-订单列表查询 | 4 |  |
-| POST | `/lcsc/openapi/order/pre/order` | 现货预下单 | 4 |  |
-| POST | `/lcsc/openapi/order/progress` | 立创商城-订单物流查询 | 1 |  |
-| POST | `/lcsc/openapi/product/get/price/by/code` | 立创商城-商品价格查询 | 2 |  |
-| POST | `/lcsc/openapi/product/search/global` | 立创商城-商品信息查询 | 1 |  |
-| POST | `/lcsc/openapi/sku/product/basic` | 立创商城-商品基础信息查询 | 1 |  |
-| POST | `/lcsc/openapi/stock/select/all/stock/by/id` | 立创商城-商品库存查询 | 1 |  |
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/lcsc/openapi/bom/result|查询BOM配单结果|何时：用户问"配单结果/匹配情况/缺什么料"时调用｜要点：入参 bomUuid（提交返回的单号），返回匹配汇总与逐行匹配商品（C编号/阶梯价/库存）｜约束：异步任务，按 progress 轮询，status=done 才是最终结果｜前置：需商务申请开通（未开通实测429勿重试）｜频控：额度紧张勿轮询，限额以控制台为准|1| |
+|POST|/lcsc/openapi/bom/search|型号批量搜索|何时：用户给一批型号要"找料/查价/批量选型/BOM成本核算"时调用｜要点：querys 传型号列表，按行号返回匹配商品（C编号/品牌/封装/阶梯价/库存）｜约束：仅按型号匹配，无匹配行返回空；BOM三接口默认未开通（实测429）｜前置：需商务申请开通｜频控：额度紧张，型号一次批量传完勿逐条循环，限额以控制台为准|1| |
+|POST|/lcsc/openapi/bom/submit|提交 BOM 配单|何时：用户要"整单代购/BOM一键配单/按清单配齐"时调用｜要点：multipart 上传官方 BOM 模板（http://bom.szlcsc.com  下载），返回 bomUuid 供查结果｜约束：写接口（产生真实交易，执行前建议向用户确认）；｜前置：需商务申请开通（未开通实测429勿重试）｜频控：额度紧张勿重复提交，限额以控制台为准|1| |
+|POST|/lcsc/openapi/enquiry/create|创建询价单|何时：用户要"缺货登记/议价/能不能便宜点"时调用｜要点：对缺货或需议价的商品发起询价，提交商品与数量等询价条件｜约束：写接口（产生真实交易，执行前建议向用户确认）；；报价异步生成，出价后用查询询价单跟进｜前置：需先明确商品（型号先用商品搜索换C编号）｜频控：限额以控制台为准|4| |
+|POST|/lcsc/openapi/enquiry/info|查询询价单|何时：用户问"报价出来了吗/询价单怎么样/便宜了多少"时调用｜要点：查询价单状态与报价结果，支持多条件查询｜约束：报价异步生成，创建后未出价属正常，稍后再查勿密集轮询｜前置：需询价单号（创建询价单返回）｜频控：较宽松，限额以控制台为准|22| |
+|POST|/lcsc/openapi/enquiry/pre/order|询价单预下单|何时：用户接受报价要"按这个价下单/就按报价买"时调用｜要点：按询价单的报价结果生成待支付订单｜约束：写接口（产生真实交易，执行前建议向用户确认）；；生成待支付订单，支付另行完成｜前置：须先创建询价单并已获得报价｜频控：限额以控制台为准|24| |
+|POST|/lcsc/openapi/order/detail|立创商城-订单详情接口|何时：用户问"元器件订单怎么样/这单花了多少钱/买了什么"时调用｜要点：入参商城订单编号 orderCode（SO开头），返回订单总额（扣优惠后）/原总额/物流单号/商品行与最终数量｜约束：只按 orderCode 查，不是PCB的客户订单号/生产单号｜频控：较宽松，限额以控制台为准|1| |
+|POST|/lcsc/openapi/order/list|立创商城-订单列表查询|何时：用户要"导出元器件订单/对账/最近买了哪些料"时调用｜要点：按时间段等条件分页拉商城订单列表，用于对账与订单同步｜约束：单次时间段≤90天，跨长时段分段查｜频控：较宽松，分段批量查勿逐日循环，限额以控制台为准|4| |
+|POST|/lcsc/openapi/order/pre/order|现货预下单|何时：用户要"买元器件/现货采购下单"时调用｜要点：productList 传商品（productId/productCode 二选一）+数量，返回 pcUrl 网页下单链接（含失效时间 expireTime）+报价清单｜约束：本接口只生成下单链接——收货地址/发票/付款在 pcUrl 网页端完成，API 不覆盖；链接有时效，过期需重新生成｜频控：以控制台为准|4| |
+|POST|/lcsc/openapi/order/progress|立创商城-订单物流查询|何时：用户问"元器件订单发货了吗/到哪了/签收没"时调用｜要点：按订单查物流进度与签收状态｜约束：订单号从列表/详情取，发货前无轨迹属正常｜频控：勿密集轮询，按需查询，限额以控制台为准|1| |
+|POST|/lcsc/openapi/product/get/price/by/code|立创商城-商品价格查询|何时：用户问"C17414多少钱/这颗料什么价"时调用｜要点：productCodeList 按立创编号批量查阶梯价（起始阶梯/原价/折扣价），按采购量对档取价｜约束：只收C编号不收型号，型号先用商品搜索换编号｜频控：较宽松，批量一次传完，限额以控制台为准|2| |
+|POST|/lcsc/openapi/product/search/global|立创商城-商品信息查询|何时：用户给型号说"帮我找料/查价/有没有这个型号"时调用｜要点：按型号/关键词搜索，返回立创编号+品牌+封装+阶梯价+两仓库存，型号换C编号的入口｜约束：同型号可能多品牌/封装多条，需确认选哪颗；价格库存以对应接口为准｜频控：较宽松，限额以控制台为准|1| |
+|POST|/lcsc/openapi/sku/product/basic|立创商城-商品基础信息查询|何时：用户问"这颗料是什么/什么封装/C编号什么规格"时调用｜要点：按立创编号查名称/型号/封装/描述等基础信息｜约束：只收C编号，不含价格库存（走价格/库存接口）｜频控：较宽松，限额以控制台为准|1| |
+|POST|/lcsc/openapi/stock/select/all/stock/by/id|立创商城-商品库存查询|何时：用户问"有没有货/库存多少/够不够N个"时调用｜要点：productCodeList 按C编号批量查深圳（珠海）/江苏仓可用库存（可用=库存−现货占用）｜约束：返回可用量非在库总量，比数量按可用量算｜频控：较宽松，批量一次传完勿逐条循环，限额以控制台为准|1| |
 
 ## 嘉立创云ERP (42)
-
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/open/api/saas/erp/file/directoryList` | 文件夹列表查询 | 5 |  |
-| POST | `/open/api/saas/erp/file/listFileTag` | 文件标签列表查询 | 2 |  |
-| POST | `/open/api/saas/erp/file/listTaskAttachmen` | 任务附件列表查询 | 1 |  |
-| POST | `/open/api/saas/erp/file/updateFileRelatedTag` | 更新文件标签 | 2 |  |
-| POST | `/open/api/saas/erp/file/uploadDirectoryFile` | 上传文件到指定文件夹 | 3 | multipart |
-| POST | `/open/api/saas/erp/file/uploadTaskAttachment` | 上传任务附件 | 3 | multipart |
-| POST | `/open/api/saas/erp/file/uploadTmpFile` | 上传临时文件 | 2 | multipart |
-| POST | `/open/api/saas/erp/goods/batchAdd` | 批量新增成品 | 1 | multipart |
-| POST | `/open/api/saas/erp/goods/config/tree` | 成品目录树查询 | 4 |  |
-| POST | `/open/api/saas/erp/goods/page` | 分页查询成品 | 12 |  |
-| POST | `/open/api/saas/erp/inventory/inStock/add` | 新增入库单 | 34 |  |
-| POST | `/open/api/saas/erp/inventory/inStock/inbound` | 入库单列表-确认入库 | 1 |  |
-| POST | `/open/api/saas/erp/inventory/inStock/page` | 分页查询入库单 | 15 |  |
-| POST | `/open/api/saas/erp/inventory/material/batchAdd` | 批量新增物料 | 1 | multipart |
-| POST | `/open/api/saas/erp/inventory/material/page` | 进销存-分页查询物料接口 | 12 |  |
-| POST | `/open/api/saas/erp/inventory/materialCategory/typeTreeV2` | 物料类别类型树查询 | 4 |  |
-| POST | `/open/api/saas/erp/inventory/outStock/add` | 进销存-新增出库单 | 45 |  |
-| POST | `/open/api/saas/erp/inventory/outStock/outbound` | 出库单-确认出库 | 1 |  |
-| POST | `/open/api/saas/erp/inventory/outStock/page` | 分页查询出库单 | 32 |  |
-| POST | `/open/api/saas/erp/inventory/stock/goods/menuPage` | 成品库存菜单分页查询 | 22 |  |
-| POST | `/open/api/saas/erp/inventory/stock/material/menuPage` | 物料库存菜单分页查询 | 42 |  |
-| POST | `/open/api/saas/erp/order/detail` | 销售订单详情查询 | 1 |  |
-| POST | `/open/api/saas/erp/order/menuPage` | 销售订单分页查询 | 32 |  |
-| POST | `/open/api/saas/erp/productionOrder/detail` | 生产订单详情查询 | 1 |  |
-| POST | `/open/api/saas/erp/productionOrder/menuPage` | 生产订单分页查询 | 3 |  |
-| POST | `/open/api/saas/erp/project/memberDetailInProject` | 项目成员详情查询 | 1 |  |
-| POST | `/open/api/saas/erp/project/page` | 项目-分页查询项目列表 | 11 |  |
-| POST | `/open/api/saas/erp/project/updateStatus` | 项目状态变更 | 2 |  |
-| POST | `/open/api/saas/erp/projectTask/add` | 创建项目任务 | 38 |  |
-| POST | `/open/api/saas/erp/projectTask/detail` | 查询项目任务详情 | 2 |  |
-| POST | `/open/api/saas/erp/projectTask/page` | 分页查询项目任务 | 19 |  |
-| POST | `/open/api/saas/erp/projectTask/update` | 修改项目任务 | 39 |  |
-| POST | `/open/api/saas/erp/projectTaskWorkingHours/add` | 登记项目工时接口 | 5 |  |
-| POST | `/open/api/saas/erp/projectTaskWorkingHours/delete` | 删除项目工时 | 1 |  |
-| POST | `/open/api/saas/erp/projectTaskWorkingHours/detail` | 项目工时详情查询 | 1 |  |
-| POST | `/open/api/saas/erp/projectTaskWorkingHours/page` | 项目工时分页查询 | 3 |  |
-| POST | `/open/api/saas/erp/projectTaskWorkingHours/update` | 修改项目工时 | 6 |  |
-| POST | `/open/api/saas/erp/purchaseOrder/detail` | 采购订单详情查询接口 | 1 |  |
-| POST | `/open/api/saas/erp/purchaseOrder/menuPage` | 采购订单明细分页查询 | 4 |  |
-| POST | `/open/api/saas/erp/warehouse/menuPage` | 分页查询仓库 | 12 |  |
-| POST | `/open/api/saas/erp/warehouse/warehouseLocationPage` | 分页查询库位 | 9 |  |
-| POST | `/open/api/saas/erp/warehouse/warehouseLocationTreeV2` | 查询仓库-货架-库位树接口 | 3 |  |
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/open/api/saas/erp/file/directoryList|文件夹列表查询|何时：用户问"附件存哪/文件夹结构/资料目录在哪"时调用｜要点：按父级ID查云ERP文件夹树/列表，返回文件夹清单｜约束：只含文件夹结构不含文件本体，查文件用任务附件列表｜前置：云ERP业务线已开通｜频控：查询类较宽松适合低频调用，具体限额以控制台为准（具体限额以控制台实际展示为准）|5| |
+|POST|/open/api/saas/erp/file/listFileTag|文件标签列表查询|何时：要给文件打标签前问"有哪些标签可用"时调用｜要点：返回文件标签字典（标签ID/名称），供更新文件标签接口选用｜约束：仅标签清单，不含文件本身｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|2| |
+|POST|/open/api/saas/erp/file/listTaskAttachmen|任务附件列表查询|何时：用户问"这个任务传了哪些附件/项目资料清单"时调用｜要点：按项目任务ID查该任务的附件清单；接口名官方拼写为 Attachmen（缺字母t），照抄勿改｜前置：需先经项目任务接口查得任务ID｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/file/updateFileRelatedTag|更新文件标签|何时：用户要"给文件打标签/改标签/按标签整理附件"时调用｜要点：传文件ID+标签ID增改文件关联标签｜约束：写接口（修改标签元数据，不产生交易，建议向用户确认）；标签须先经文件标签列表获取｜频控：写类限额以控制台为准（具体限额以控制台实际展示为准）|2| |
+|POST|/open/api/saas/erp/file/uploadDirectoryFile|上传文件到指定文件夹|何时：用户要"传文件到ERP文件夹/资料归档"时调用｜要点：multipart 上传文件本体+目标文件夹ID｜前置：先查文件夹列表取文件夹ID｜约束：写接口（产生真实交易，执行前建议向用户确认）；；上传类频控较紧勿并发批量传，具体限额以控制台为准（具体限额以控制台实际展示为准）|3| |
+|POST|/open/api/saas/erp/file/uploadTaskAttachment|上传任务附件|何时：用户要"给项目任务传附件/补充任务资料"时调用｜要点：multipart 上传文件+项目任务ID，附件挂到任务下｜前置：先查项目任务得任务ID｜约束：写接口（产生真实交易，执行前建议向用户确认）；；上传类频控较紧，具体限额以控制台为准（具体限额以控制台实际展示为准）|3| |
+|POST|/open/api/saas/erp/file/uploadTmpFile|上传临时文件|何时：需先传文件再关联为正式附件（附件预上传中转）时调用｜要点：multipart 上传临时文件，返回临时文件标识供后续关联｜约束：写接口（产生真实交易，执行前建议向用户确认）；；临时文件不落正式目录仅作中转，后续关联须尽快完成｜频控：上传类较紧，具体限额以控制台为准（具体限额以控制台实际展示为准）|2| |
+|POST|/open/api/saas/erp/goods/batchAdd|批量新增成品|何时：用户要"批量建成品档案/导入成品资料"时调用｜要点：multipart 上传按模板填好的成品档案文件批量建档｜前置：成品目录已建好（先查成品目录树选分类）｜ 约束：写接口（批量建档，建议向用户确认）；导入结果以响应为准勿盲目重传｜频控：建档类限额有限勿频繁重导，具体以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/goods/config/tree|成品目录树查询|何时：新增成品前选分类、用户问"成品目录/分类有哪些"时调用｜要点：goodsConfigType=2 查成品目录树｜约束：仅返回分类结构，查成品档案本身用分页查询成品｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|4| |
+|POST|/open/api/saas/erp/goods/page|分页查询成品|何时：用户问"查成品/成品档案/成品规格编码"时调用｜要点：pageNum/pageSize 必传（单页≤1000），按名称/编码/规格筛选｜约束：全量拉取需分页遍历防漏，响应取 data.data｜频控：查询类较宽松适合分页拉取，具体限额以控制台为准（具体限额以控制台实际展示为准）|12| |
+|POST|/open/api/saas/erp/inventory/inStock/add|新增入库单|何时：用户要"登记入库单/采购到货入库/生产入库"时调用｜要点：传仓库+来源方+物料明细行（编码/数量），创建入库单｜前置：仓库与物料档案已建（物料编码先经物料分页核对）｜ 约束：写接口（产生真实交易，执行前建议向用户确认）；；创建后需确认入库接口审核才正式入库｜频控：写单类较紧，具体限额以控制台为准（具体限额以控制台实际展示为准）|34| |
+|POST|/open/api/saas/erp/inventory/inStock/inbound|入库单列表-确认入库|何时：用户说"入库单确认/审核入库/货到了入库吧"时调用｜要点：按入库单ID确认入库，确认后库存实增｜前置：先经新增入库单建单｜约束：写接口（产生真实交易，执行前建议向用户确认）；；确认前务必核对明细与数量｜频控：写类限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/inventory/inStock/page|分页查询入库单|何时：用户要"查入库单/最近入库记录/入库对账"时调用｜要点：pageNum/pageSize 必传，按状态/供应商/时间段筛选｜约束：大跨度查询先收窄时间段再分页拉取防漏单，响应取 data.data｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|15| |
+|POST|/open/api/saas/erp/inventory/material/batchAdd|批量新增物料|何时：用户要"批量建物料档案/导入物料清单"时调用｜要点：multipart 上传按模板填好的物料档案文件批量建档｜前置：物料类别已建（先查物料类别类型树）｜ 约束：写接口（批量建档，建议向用户确认）；导入结果以响应为准勿盲目重传｜频控：建档类限额有限勿频繁重导，具体以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/inventory/material/page|进销存-分页查询物料接口|何时：用户问"查物料/物料档案/物料编码规格"时调用｜要点：pageNum/pageSize 必传（≤1000），按编码/名称/规格筛选｜约束：响应取 data.data；出入库建单前用它核对物料编码｜频控：查询类较宽松适合分页拉取，具体限额以控制台为准（具体限额以控制台实际展示为准）|12| |
+|POST|/open/api/saas/erp/inventory/materialCategory/typeTreeV2|物料类别类型树查询|何时：建物料前选类别、用户问"物料怎么分类/类别树"时调用｜要点：返回物料类型分组+物料类别树｜约束：仅分类结构，查物料档案用物料分页接口｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|4| |
+|POST|/open/api/saas/erp/inventory/outStock/add|进销存-新增出库单|何时：用户要"登记出库单/销售发货出库/领料出库"时调用｜要点：传仓库+领用方/客户+物料明细行（编码/数量），创建出库单｜前置：仓库与物料档案已建｜约束：写接口（产生真实交易，执行前建议向用户确认）；；创建后需确认出库接口审核才正式出库｜频控：写单类较紧，具体限额以控制台为准（具体限额以控制台实际展示为准）|45| |
+|POST|/open/api/saas/erp/inventory/outStock/outbound|出库单-确认出库|何时：用户说"出库单确认/审核出库/发货出库吧"时调用｜要点：按出库单ID确认出库，确认后库存实减｜前置：先经新增出库单建单｜约束：写接口（产生真实交易，执行前建议向用户确认）；；确认前核对明细防错发｜频控：写类限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/inventory/outStock/page|分页查询出库单|何时：用户要"查出库单/出库记录/发货对账"时调用｜要点：pageNum/pageSize 必传，按状态/客户/时间段等筛选｜约束：筛选参数较多，先收窄时间段与状态再分页拉取防漏单｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|32| |
+|POST|/open/api/saas/erp/inventory/stock/goods/menuPage|成品库存菜单分页查询|何时：用户问"成品库存多少/哪个仓有货/库存怎么分布"时调用｜要点：按成品分类分组+关键字筛选，返回库存数量与仓库分布｜约束：菜单分页口径（分类分组），pageNum/pageSize 必传｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|22| |
+|POST|/open/api/saas/erp/inventory/stock/material/menuPage|物料库存菜单分页查询|何时：用户问"生产单缺哪些料/要不要补料/物料库存与在途"时调用｜要点：行内 needNum(需求)/stockNum(库存)/transitNum(在途)，缺口=需求−库存−在途>0 即需采购｜约束：生产缺料分析核心接口，按关键字/类别筛选后逐行对比｜频控：查询类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|42| |
+|POST|/open/api/saas/erp/order/detail|销售订单详情查询|何时：用户问“某张销售单的明细/金额/客户/行项”时调用｜要点：入参销售订单ID（1个），先用销售订单分页查询换ID｜约束：行项/金额/客户一次返回；响应多为 data.data 嵌套结构，解析注意｜频控：订单类额度较宽，具体限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/order/menuPage|销售订单分页查询|何时：用户问“我现在有哪些销售单/导出订单/做对账台账”时调用｜要点：必传 pageNum/pageSize（单页≤1000），支持 customerName/orderCode/keywordSearch/金额区间筛选｜约束：结果超 50 条先问用户要不要收窄条件再汇总｜频控：订单类较宽适合轮询同步，具体限额以控制台为准（具体限额以控制台实际展示为准）|32| |
+|POST|/open/api/saas/erp/productionOrder/detail|生产订单详情查询|何时：用户问“生产单缺哪些料/生产单明细”、要做缺料分析时调用｜要点：入参生产订单ID；返回含 BOM 编号/名称引用，是缺料分析起点——BOM 物料接物料库存菜单查询比对：缺口=needNum(需求)−stockNum(库存)−transitNum(在途)｜约束：只给 BOM 引用不直接给缺口结论，需组合接口自行比对｜频控：订单类较宽，具体限额以控制台为准|1| |
+|POST|/open/api/saas/erp/productionOrder/menuPage|生产订单分页查询|何时：用户问“有哪些生产单/生产单台账”，或缺料分析要先选定生产单时调用｜要点：可按单号等条件分页，必传 pageNum/pageSize（≤1000）｜约束：列表行不含 BOM，须再按 ID 调生产订单详情拿 BOM 引用｜频控：订单类较宽适合轮询，具体限额以控制台为准（具体限额以控制台实际展示为准）|3| |
+|POST|/open/api/saas/erp/project/memberDetailInProject|项目成员详情查询|何时：用户问“这个项目有谁/成员怎么分工/谁负责”时调用｜要点：入参项目ID（1个），返回成员总数与成员列表｜约束：按项目维度返回，不是全公司通讯录；项目ID先用项目分页查询换｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/project/page|项目-分页查询项目列表|何时：用户问“有哪些项目/项目列表/找某个项目”时调用｜要点：按状态/负责人等条件分页，必传 pageNum/pageSize（≤1000）｜约束：只给列表口径，成员/任务细节分别用项目成员详情、项目任务分页接口｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|11| |
+|POST|/open/api/saas/erp/project/updateStatus|项目状态变更|何时：用户要“把项目结项/暂停/改项目状态”时调用｜ 要点：入参项目ID+目标状态（2个），先查项目分页确认现状｜约束：写接口（产生真实交易，执行前建议向用户确认）；只改状态字段不动任务与成员，执行前向用户复述目标状态｜频控：写接口勿批量高频调用，具体限额以控制台为准|2| |
+|POST|/open/api/saas/erp/projectTask/add|创建项目任务|何时：用户要“建任务/派活/新增项目任务”时调用｜ 要点：参数多达 38 个，必填项与字段明细以控制台接口文档为准；关联项目/负责人用既有项目与成员ID｜约束：写接口（产生真实交易，执行前建议向用户确认）；参数多易漏必填，提交前逐项核对并让用户确认｜频控：写接口配额有限勿批量刷单，具体限额以控制台为准|38| |
+|POST|/open/api/saas/erp/projectTask/detail|查询项目任务详情|何时：用户问“这个任务做到哪了/任务详情/任务附件”时调用｜要点：入参任务ID，返回进度/负责人/附件等｜约束：任务ID来自项目任务分页查询；附件文件上传/下载走文件-任务附件接口｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|2| |
+|POST|/open/api/saas/erp/projectTask/page|分页查询项目任务|何时：用户问“我有哪些任务/任务清单/按项目捞任务”时调用｜要点：按项目/状态/负责人等分页筛选，必传 pageNum/pageSize（≤1000）｜约束：批量看任务用它；改任务前先查详情核对字段｜频控：较宽松适合轮询同步，具体限额以控制台为准（具体限额以控制台实际展示为准）|19| |
+|POST|/open/api/saas/erp/projectTask/update|修改项目任务|何时：用户要“改任务进度/换负责人/更新任务状态”时调用｜ 要点：入参任务ID+待改字段（39 个参数与创建同量级，明细以控制台接口文档为准）｜约束：写接口（产生真实交易，执行前建议向用户确认）；改前先查详情拿现状，提交前向用户复述改动点｜频控：写接口勿高频批量调用，具体限额以控制台为准|39| |
+|POST|/open/api/saas/erp/projectTaskWorkingHours/add|登记项目工时接口|何时：用户要“登记/补报工时、记录今天干了什么”时调用｜ 要点：入参关联项目任务ID+实际投入时间与工作内容｜约束：写接口（产生真实交易，执行前建议向用户确认）；工时挂在项目任务下，先用项目任务分页/详情换任务ID｜频控：写接口配额有限勿批量刷，具体限额以控制台为准|5| |
+|POST|/open/api/saas/erp/projectTaskWorkingHours/delete|删除项目工时|何时：用户要“删掉这条工时/工时报错了”时调用｜ 要点：入参工时记录业务主键ID，先用工时分页/详情查得｜约束：写接口（产生真实交易，执行前建议向用户确认）；删除影响真实工时数据，执行前向用户复述工时ID与内容再动手｜频控：写接口勿批量删除，具体限额以控制台为准|1| |
+|POST|/open/api/saas/erp/projectTaskWorkingHours/detail|项目工时详情查询|何时：用户问“这条工时记的什么/工时明细”时调用｜要点：入参工时记录业务主键ID（1个）｜约束：ID 来自工时分页查询；单条口径，批量核对改用工时分页｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/projectTaskWorkingHours/page|项目工时分页查询|何时：用户问“工时统计/谁报了多少工时/按任务核对工时”时调用｜要点：分页拉工时记录，必传 pageNum/pageSize（≤1000）｜约束：返回的是工时记录行，按人/按项目汇总需自行聚合｜频控：较宽松适合轮询，具体限额以控制台为准（具体限额以控制台实际展示为准）|3| |
+|POST|/open/api/saas/erp/projectTaskWorkingHours/update|修改项目工时|何时：用户要“更正工时时长/改工时内容”时调用｜ 要点：入参工时业务主键ID+待改字段（时长/工作内容）｜约束：写接口（产生真实交易，执行前建议向用户确认）；改前先查详情核对现状，提交前向用户复述｜频控：写接口勿高频调用，具体限额以控制台为准|6| |
+|POST|/open/api/saas/erp/purchaseOrder/detail|采购订单详情查询接口|何时：用户问“这采购单的明细/供应商/到货情况”时调用｜要点：入参采购订单ID，先用采购订单明细分页换ID｜约束：单条详情口径，列表走采购订单明细分页｜频控：订单类较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|1| |
+|POST|/open/api/saas/erp/purchaseOrder/menuPage|采购订单明细分页查询|何时：用户问“有哪些采购单/采购到货了吗/做采购台账”时调用｜要点：按供应商/到货状态等分页筛明细，必传 pageNum/pageSize（≤1000）｜约束：返回的是明细行非单头，按单汇总需自行按单号聚合｜频控：订单类较宽适合轮询同步，具体限额以控制台为准|4| |
+|POST|/open/api/saas/erp/warehouse/menuPage|分页查询仓库|何时：用户问“有哪些仓库/同步仓库主数据”时调用｜要点：分页查仓库清单，必传 pageNum/pageSize（≤1000），支持多条件筛选｜约束：不返回货架/库位层级，层级关系用仓库库位树接口｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|12| |
+|POST|/open/api/saas/erp/warehouse/warehouseLocationPage|分页查询库位|何时：用户问“仓库里有哪些库位/同步库位主数据”时调用｜要点：按仓库等条件分页查库位，必传 pageNum/pageSize（≤1000）｜约束：平铺列表口径，仓库-货架-库位层级关系改用仓库库位树｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|9| |
+|POST|/open/api/saas/erp/warehouse/warehouseLocationTreeV2|查询仓库-货架-库位树接口|何时：用户问“仓库货架库位结构/库位层级树”时调用｜要点：返回仓库→货架→库位层级树；接口为 V2 版以本版为准｜约束：树形口径与库位分页按需二选一｜频控：较宽松，具体限额以控制台为准（具体限额以控制台实际展示为准）|3| |
 
 ## CNC业务 (1)
+|方法|路径|名称|接口描述|参数数|备注|
+|-|-|-|-|-|-|
+|POST|/machineIntegrated/toolBox/v1/recordCount|UG工程插件使用记录|上报 UG 工程插件使用次数（内部统计用途，业务客户一般不需要）|2| |
 
-| 方法 | 路径 | 名称 | 参数数 | 备注 |
-| --- | --- | --- | --- | --- |
-| POST | `/machineIntegrated/toolBox/v1/recordCount` | UG工程插件使用记录 | 2 |  |
