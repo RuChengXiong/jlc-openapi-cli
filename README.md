@@ -46,7 +46,7 @@ jlc-openapi-cli init \
 ```
 
 配置写入 `~/.jlc-openapi-config.json`（权限尽量设为 0600）。生产地址为
-`https://open-api.jlc.com`，测试地址为 `https://test-open-api.jlc.com`。
+`https://open-api.jlc.com`。
 
 配置读取优先级：
 

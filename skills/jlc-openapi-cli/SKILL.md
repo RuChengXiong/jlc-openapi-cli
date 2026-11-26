@@ -42,7 +42,7 @@ jlc-openapi-cli init \
   --endpoint "https://open-api.jlc.com"
 ```
 
-- 生产：`https://open-api.jlc.com`；测试：`https://test-open-api.jlc.com`
+- 生产：`https://open-api.jlc.com`；
 - 缺少凭据时向用户索取，**不要猜测或编造**。
 - 也可用环境变量：`JLC_OPENAPI_APP_ID`、`JLC_OPENAPI_ACCESS_KEY`、
   `JLC_OPENAPI_SECRET_KEY`、`JLC_OPENAPI_ENDPOINT`。
