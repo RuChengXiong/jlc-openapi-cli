@@ -64,6 +64,7 @@ jlc-openapi-cli /pcb/order/create --pcbFileUrl "https://..." --fileName "Pcb.zip
 - 需要完整目录时读 `references/endpoints.md`。
 - 机器可读：`list --summary --json --compact`（不含 fields）。
 - 单个接口完整 schema：`list <路径> --json`。
+- 遇到'通知/推送/提醒'场景 → 可以先查 `references/events.md` 有无事件可订阅，没有的话再考虑轮询。
 
 ## 参数写法
 
