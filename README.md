@@ -17,16 +17,16 @@ npm install -g jlc-openapi-cli
 
 ## 安装 Skill（可选）
 
-`init` 会把 skill 复制到 `~/.jlc-openapi-cli/skill` 并打印各智能体的安装路径。也可以直接用
+`init` 会把 skill 复制到 `~/jlc-openapi-cli`，并打印各智能体的 skills 目录。也可以直接用
 [skills CLI](https://skills.sh) 从仓库安装：
 
 ```bash
 npx skills add RuChengXiong/jlc-openapi-cli -y -g -a claude-code
 ```
 
-`npx skills` 需要 Node.js >= 22.20。手动安装可把 `~/.jlc-openapi-cli/skill/`
-复制到 `~/.claude/skills/jlc-openapi-cli`（Claude Code）或
-`~/.agents/skills/jlc-openapi-cli`（Codex 等）。
+`npx skills` 需要 Node.js >= 22.20。手动安装可把 `~/jlc-openapi-cli` 整个目录复制到
+`~/.claude/skills/`（Claude Code）或 `~/.agents/skills/`（Codex 等），目录名会正确保留为
+`jlc-openapi-cli`。
 
 ## 初始化
 

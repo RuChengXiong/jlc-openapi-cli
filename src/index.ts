@@ -28,7 +28,7 @@ const HELP = `jlc-openapi-cli ${getVersion()} — 嘉立创开放平台命令行
   jlc-openapi-cli help | --version
 
 命令:
-  init    配置 appId / ak / sk / endpoint，并复制 skill 到 ~/.jlc-openapi-cli/skill
+  init    配置 appId / ak / sk / endpoint，并复制 skill 到 ~/jlc-openapi-cli
   list    列出接口目录（默认优先服务端 /list，6 小时缓存）
   detail  查看单个接口契约（服务端 /detail，包含参数、示例、错误码、agentGuidance）
   call    通用兜底调用，用于未注册或没有契约的接口

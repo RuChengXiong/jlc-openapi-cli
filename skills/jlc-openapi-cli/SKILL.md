@@ -47,7 +47,8 @@ jlc-openapi-cli init \
 - 也可用环境变量：`JLC_OPENAPI_APP_ID`、`JLC_OPENAPI_ACCESS_KEY`、
   `JLC_OPENAPI_SECRET_KEY`、`JLC_OPENAPI_ENDPOINT`。
 - 永远不要打印、cat 或提交 `~/.jlc-openapi-config.json`。
-- `init` 会把 skill 复制到 `~/.jlc-openapi-cli/skill` 并打印安装路径；不需要时加 `--no-skill`。
+- `init` 会把 skill 复制到 `~/jlc-openapi-cli` 并打印智能体 skills 目录；不需要时加 `--no-skill`。
+  把该目录整个复制到 `~/.claude/skills/` 或 `~/.agents/skills/` 即可使用。
 
 ## 工作流：找接口 → 看契约 → 调用
 

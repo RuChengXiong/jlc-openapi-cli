@@ -34,11 +34,12 @@ export function packageSkillDir(packageRoot?: string): string {
 export function installSkill(options: SkillInstallOptions = {}): SkillInstallResult {
   const homeDir = options.homeDir ?? os.homedir();
   const source = options.sourceDir ?? packageSkillDir(options.packageRoot);
-  const destination = path.join(homeDir, ".jlc-openapi-cli", "skill");
+  // 目录名保持 jlc-openapi-cli，复制到 ~/.claude/skills/ 后即可直接使用。
+  const destination = path.join(homeDir, "jlc-openapi-cli");
   const targets = {
-    claudeCode: path.join(homeDir, ".claude", "skills", "jlc-openapi-cli"),
-    codex: path.join(homeDir, ".agents", "skills", "jlc-openapi-cli"),
-    generic: path.join(homeDir, ".agents", "skills", "jlc-openapi-cli"),
+    claudeCode: path.join(homeDir, ".claude", "skills"),
+    codex: path.join(homeDir, ".agents", "skills"),
+    generic: path.join(homeDir, ".agents", "skills"),
   };
 
   if (!fs.existsSync(path.join(source, "SKILL.md"))) {
@@ -49,6 +50,27 @@ export function installSkill(options: SkillInstallOptions = {}): SkillInstallRes
       reason: `未找到 skill 源文件：${path.join(source, "SKILL.md")}`,
       targets,
     };
+  }
+
+  if (fs.existsSync(destination)) {
+    if (fs.existsSync(path.join(destination, ".git"))) {
+      return {
+        source,
+        destination,
+        installed: false,
+        reason: `目标目录已存在且看起来是代码仓库：${destination}。请先移走或改名后再运行 init。`,
+        targets,
+      };
+    }
+    if (!fs.existsSync(path.join(destination, "SKILL.md"))) {
+      return {
+        source,
+        destination,
+        installed: false,
+        reason: `目标目录已存在且不是 skill：${destination}。为避免误删，请先移走或改名后再运行 init。`,
+        targets,
+      };
+    }
   }
 
   const parent = path.dirname(destination);
@@ -83,7 +105,7 @@ export function renderSkillInstructions(result: SkillInstallResult): string[] {
 
   return [
     `Skill 已复制到 ${result.destination}`,
-    "安装到智能体：",
+    "将该目录整个复制到智能体 skills 目录即可：",
     `  Claude Code:  ${result.targets.claudeCode}`,
     `  Codex:        ${result.targets.codex}（部分版本使用 ~/.codex/skills，按客户端设置）`,
     `  通用 agents:  ${result.targets.generic}`,
