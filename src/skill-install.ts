@@ -76,34 +76,16 @@ export function installSkill(options: SkillInstallOptions = {}): SkillInstallRes
   }
 }
 
-function posixCopy(source: string, target: string): string {
-  return `cp -r "${source.replace(/\\/g, "/")}" "${target.replace(/\\/g, "/")}"`;
-}
-
-function powershellCopy(source: string, target: string): string {
-  return `Copy-Item -Recurse -Force "${source}" "${target}"`;
-}
-
 export function renderSkillInstructions(result: SkillInstallResult): string[] {
-  const lines: string[] = [];
   if (!result.installed) {
-    lines.push(`Skill 未安装：${result.reason ?? "未知原因"}`);
-    lines.push("可改用：npx skills add RuChengXiong/jlc-openapi-cli -y -g");
-    return lines;
+    return [`Skill 未安装：${result.reason ?? "未知原因"}`];
   }
 
-  lines.push(`Skill 已复制到 ${result.destination}`);
-  lines.push("安装到智能体（任选其一）：");
-  lines.push(`  Claude Code:  ${result.targets.claudeCode}`);
-  lines.push(`  Codex:        ${result.targets.codex}（部分版本使用 ~/.codex/skills，按客户端设置）`);
-  lines.push(`  通用 agents:  ${result.targets.generic}`);
-  lines.push("");
-  lines.push("POSIX（Git Bash / macOS / Linux）：");
-  lines.push(`  ${posixCopy(result.destination, result.targets.claudeCode)}`);
-  lines.push(`  ${posixCopy(result.destination, result.targets.generic)}`);
-  lines.push("PowerShell：");
-  lines.push(`  ${powershellCopy(result.destination, result.targets.claudeCode)}`);
-  lines.push(`  ${powershellCopy(result.destination, result.targets.generic)}`);
-  lines.push("或：npx skills add RuChengXiong/jlc-openapi-cli -y -g");
-  return lines;
+  return [
+    `Skill 已复制到 ${result.destination}`,
+    "安装到智能体：",
+    `  Claude Code:  ${result.targets.claudeCode}`,
+    `  Codex:        ${result.targets.codex}（部分版本使用 ~/.codex/skills，按客户端设置）`,
+    `  通用 agents:  ${result.targets.generic}`,
+  ];
 }

@@ -45,7 +45,7 @@ test("installSkill 替换旧目录但不删除父目录中的缓存", () => {
   assert.ok(fs.existsSync(path.join(cacheDir, "contracts-cache.json")));
 });
 
-test("installSkill 源缺失时返回未安装", () => {
+test("installSkill 源缺失时返回未安装，且不提示 npx", () => {
   const home = tempDir("jlc-skill-home-");
   const result = installSkill({
     homeDir: home,
@@ -54,10 +54,11 @@ test("installSkill 源缺失时返回未安装", () => {
   assert.equal(result.installed, false);
   assert.ok(result.reason?.includes("SKILL.md"));
   const lines = renderSkillInstructions(result).join("\n");
-  assert.ok(lines.includes("npx skills add"));
+  assert.ok(lines.includes("Skill 未安装"));
+  assert.equal(lines.includes("npx skills add"), false);
 });
 
-test("renderSkillInstructions 包含三个目标与 PowerShell", () => {
+test("renderSkillInstructions 只提示三个目标路径", () => {
   const result = installSkill({
     homeDir: tempDir("jlc-skill-home-"),
     sourceDir: makeSkillSource(),
@@ -65,8 +66,10 @@ test("renderSkillInstructions 包含三个目标与 PowerShell", () => {
   const text = renderSkillInstructions(result).join("\n");
   assert.ok(text.includes(".claude"));
   assert.ok(text.includes(".agents"));
-  assert.ok(text.includes("Copy-Item"));
-  assert.ok(text.includes("npx skills add"));
+  assert.ok(text.includes("Skill 已复制到"));
+  assert.equal(text.includes("cp -r"), false);
+  assert.equal(text.includes("Copy-Item"), false);
+  assert.equal(text.includes("npx skills add"), false);
 });
 
 test("init --no-skill 不复制 skill，默认复制", async () => {
@@ -119,4 +122,26 @@ test("init --no-skill 不复制 skill，默认复制", async () => {
     skillSourceDir: source,
   });
   assert.ok(fs.existsSync(path.join(home, ".jlc-openapi-cli", "skill", "SKILL.md")));
+
+  const text = out.join("");
+  assert.ok(text.includes("配置已保存到"));
+  assert.ok(text.indexOf("配置已保存到") < text.indexOf("Skill 已复制到"));
+  assert.equal(text.includes("cp -r"), false);
+  assert.equal(text.includes("Copy-Item"), false);
+  assert.equal(text.includes("npx skills add"), false);
+});
+
+test("init 缺少凭据时先报错，不安装 skill", async () => {
+  const home = tempDir("jlc-init-missing-");
+  const out: string[] = [];
+  await assert.rejects(
+    runInit(parseArgs(["init", "--force"]).flags, {
+      homeDir: home,
+      env: {},
+      stdout: { write: (chunk: string) => (out.push(chunk), true) },
+      stderr: { write: () => true },
+    }),
+    /缺少/,
+  );
+  assert.equal(fs.existsSync(path.join(home, ".jlc-openapi-cli", "skill")), false);
 });

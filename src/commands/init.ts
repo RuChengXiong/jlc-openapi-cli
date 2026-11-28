@@ -138,18 +138,6 @@ export async function runInit(flags: Flags, deps: InitDeps = {}): Promise<number
   const homeDir = deps.homeDir ?? os.homedir();
   const allowHttp = getBooleanFlag(flags, "allowHttp");
 
-  if (!getBooleanFlag(flags, "noSkill")) {
-    const skillResult = installSkill({
-      homeDir,
-      ...(deps.skillSourceDir ? { sourceDir: deps.skillSourceDir } : {}),
-      ...(deps.packageRoot ? { packageRoot: deps.packageRoot } : {}),
-    });
-    for (const line of renderSkillInstructions(skillResult)) {
-      writeOut(stdout, line);
-    }
-    writeOut(stdout, "");
-  }
-
   const configPathFlag = flagOrUndefined(flags, "config");
   const target = configPathFlag
     ? path.resolve(configPathFlag)
@@ -229,5 +217,17 @@ export async function runInit(flags: Flags, deps: InitDeps = {}): Promise<number
   writeOut(stdout, `配置已保存到 ${writtenPath}`);
   writeOut(stdout, `appId=${config.appId}  endpoint=${config.endpoint}  sk=****`);
   writeOut(stdout, `配置文件包含明文密钥（权限已尽量设为 0600），请勿提交到代码仓库。`);
+
+  if (!getBooleanFlag(flags, "noSkill")) {
+    const skillResult = installSkill({
+      homeDir,
+      ...(deps.skillSourceDir ? { sourceDir: deps.skillSourceDir } : {}),
+      ...(deps.packageRoot ? { packageRoot: deps.packageRoot } : {}),
+    });
+    writeOut(stdout, "");
+    for (const line of renderSkillInstructions(skillResult)) {
+      writeOut(stdout, line);
+    }
+  }
   return 0;
 }
