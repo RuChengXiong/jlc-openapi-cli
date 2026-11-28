@@ -20,6 +20,7 @@ import {
   writeOut,
   type WritableLike,
 } from "../output";
+import { installSkill, renderSkillInstructions } from "../skill-install";
 
 export interface InitDeps {
   stdin?: NodeJS.ReadStream;
@@ -28,6 +29,8 @@ export interface InitDeps {
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
   cwd?: string;
+  skillSourceDir?: string;
+  packageRoot?: string;
 }
 
 function flagOrUndefined(flags: Flags, name: string): string | undefined {
@@ -134,6 +137,18 @@ export async function runInit(flags: Flags, deps: InitDeps = {}): Promise<number
   const env = deps.env ?? process.env;
   const homeDir = deps.homeDir ?? os.homedir();
   const allowHttp = getBooleanFlag(flags, "allowHttp");
+
+  if (!getBooleanFlag(flags, "noSkill")) {
+    const skillResult = installSkill({
+      homeDir,
+      ...(deps.skillSourceDir ? { sourceDir: deps.skillSourceDir } : {}),
+      ...(deps.packageRoot ? { packageRoot: deps.packageRoot } : {}),
+    });
+    for (const line of renderSkillInstructions(skillResult)) {
+      writeOut(stdout, line);
+    }
+    writeOut(stdout, "");
+  }
 
   const configPathFlag = flagOrUndefined(flags, "config");
   const target = configPathFlag

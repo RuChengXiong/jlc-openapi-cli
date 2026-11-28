@@ -2,10 +2,23 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getBooleanFlag, getStringFlag, hasFlag, type Flags } from "../args";
-import { loadConfig, validateEndpoint } from "../config";
-import { findSimilarPaths, getEndpoint, type EndpointDef } from "../endpoints";
+import {
+  getCachedDetail,
+  getDetail,
+  type ContractOptions,
+} from "../contract-client";
+import { resolveRuntimeConfig, type Config } from "../config";
+import {
+  GLOBAL_FLAG_NAMES,
+  allEndpoints,
+  findSimilarPaths,
+  getEndpoint,
+  matchEndpointPath,
+  type EndpointDef,
+} from "../endpoints";
 import { requestHttp, type FetchLike } from "../http";
 import { formatJsonText } from "../json-text";
+import { normalizeApiPath } from "../paths";
 import {
   CliError,
   EXIT_API,
@@ -24,6 +37,7 @@ export interface InvokeDeps {
   env?: NodeJS.ProcessEnv;
   cwd?: string;
   homeDir?: string;
+  cachePath?: string;
   now?: () => number;
   nonce?: string;
   stdout?: WritableLike;
@@ -86,22 +100,7 @@ function splitPath(apiPath: string): { path: string; query: string } {
 }
 
 function hasBusinessFieldFlags(flags: Flags, allowed: readonly string[]): boolean {
-  const ignore = new Set([
-    "config",
-    "endpoint",
-    "raw",
-    "compact",
-    "debug",
-    "timeout",
-    "method",
-    "strict",
-    "noValidate",
-    "json",
-    "jsonFile",
-    "file",
-    "signBody",
-    ...allowed,
-  ]);
+  const ignore = new Set([...GLOBAL_FLAG_NAMES, ...allowed]);
   return Object.keys(flags).some((key) => !ignore.has(key));
 }
 
@@ -147,22 +146,12 @@ function buildFormData(
 }
 
 function prepareRegistered(
-  apiPath: string,
+  def: EndpointDef,
   flags: Flags,
   cwd: string,
   stderr: WritableLike,
+  pathQuery = "",
 ): PreparedRequest {
-  const def = getEndpoint(apiPath);
-  if (!def) {
-    const similar = findSimilarPaths(apiPath);
-    usageError(
-      `未注册的接口：${apiPath}。` +
-        (similar.length > 0 ? `相近接口：${similar.join(", ")}。` : "") +
-        `可使用 \`jlc-openapi-cli list --search <关键词>\` 查找，` +
-        `或用 \`jlc-openapi-cli call ${apiPath} --json '<body>'\` 通用调用。`,
-    );
-  }
-
   const rawBody = readJsonBody(flags, cwd);
   const strict = getBooleanFlag(flags, "strict") || def.strict;
   const validate = !getBooleanFlag(flags, "noValidate");
@@ -183,7 +172,7 @@ function prepareRegistered(
           apiPath: def.path,
           contentType: "json",
           body: "",
-          query: toQueryString(parsed).join("&"),
+          query: [pathQuery, toQueryString(parsed).join("&")].filter(Boolean).join("&"),
           signBody: "",
         };
       }
@@ -192,7 +181,7 @@ function prepareRegistered(
         apiPath: def.path,
         contentType: "json",
         body: rawBody,
-        query: "",
+        query: pathQuery,
         signBody: rawBody,
       };
     }
@@ -232,7 +221,7 @@ function prepareRegistered(
       apiPath: def.path,
       contentType: "multipart",
       body: buildFormData(payload, fileValues),
-      query: "",
+      query: pathQuery,
       signBody: meta,
     };
   }
@@ -245,7 +234,7 @@ function prepareRegistered(
       apiPath: def.path,
       contentType: "json",
       body: "",
-      query: toQueryString(built.payload).join("&"),
+      query: [pathQuery, toQueryString(built.payload).join("&")].filter(Boolean).join("&"),
       signBody: "",
     };
   }
@@ -256,7 +245,7 @@ function prepareRegistered(
       apiPath: def.path,
       contentType: "multipart",
       body: buildFormData(built.payload, built.fileValues),
-      query: "",
+      query: pathQuery,
       signBody: built.signBody,
     };
   }
@@ -267,7 +256,7 @@ function prepareRegistered(
     apiPath: def.path,
     contentType: "json",
     body,
-    query: "",
+    query: pathQuery,
     signBody: body,
   };
 }
@@ -347,34 +336,18 @@ function classifyBusinessResult(parsed: unknown): { failed: boolean; summary?: s
 
 async function execute(
   prepared: PreparedRequest,
+  config: Config,
   flags: Flags,
   deps: InvokeDeps,
 ): Promise<number> {
   const stdout = deps.stdout ?? process.stdout;
   const stderr = deps.stderr ?? process.stderr;
-  const cwd = deps.cwd ?? process.cwd();
-  const env = deps.env ?? process.env;
   const compact = getBooleanFlag(flags, "compact");
   const raw = getBooleanFlag(flags, "raw");
   const debug = getBooleanFlag(flags, "debug");
   const timeoutMs = parseTimeout(flags);
 
   if (raw && compact) usageError("--raw 与 --compact 不能同时使用");
-
-  const allowHttp = getBooleanFlag(flags, "allowHttp");
-  const config = loadConfig({
-    configPath: stringValue(flags, "config"),
-    cwd,
-    homeDir: deps.homeDir,
-    env,
-    allowHttp,
-  });
-
-  const endpointOverride = stringValue(flags, "endpoint");
-  if (endpointOverride) {
-    validateEndpoint(endpointOverride, allowHttp);
-    config.endpoint = endpointOverride.replace(/\/+$/, "");
-  }
 
   if (!prepared.apiPath.startsWith("/")) {
     usageError(`接口路径必须以 / 开头：${prepared.apiPath}`);
@@ -476,6 +449,113 @@ async function execute(
   return 0;
 }
 
+function contractOptionsForInvoke(
+  config: Config,
+  flags: Flags,
+  deps: InvokeDeps,
+  stderr: WritableLike,
+): ContractOptions {
+  const options: ContractOptions = {
+    config,
+    refresh: getBooleanFlag(flags, "refresh"),
+    offline: getBooleanFlag(flags, "offline"),
+    builtin: getBooleanFlag(flags, "builtin"),
+    allowHttp: getBooleanFlag(flags, "allowHttp"),
+    warn: (message) => writeErr(stderr, `警告：${message}`),
+  };
+  if (deps.fetchImpl) options.fetchImpl = deps.fetchImpl;
+  if (deps.homeDir) options.homeDir = deps.homeDir;
+  if (deps.cachePath) options.cachePath = deps.cachePath;
+  if (deps.cwd) options.cwd = deps.cwd;
+  if (deps.env) options.env = deps.env;
+  if (deps.now) options.now = deps.now;
+  if (getBooleanFlag(flags, "debug")) {
+    options.debug = (message) => writeErr(stderr, message);
+  }
+  return options;
+}
+
+async function resolveEndpointForInvoke(
+  apiPath: string,
+  flags: Flags,
+  deps: InvokeDeps,
+  config: Config,
+  stderr: WritableLike,
+): Promise<EndpointDef> {
+  const bundled = getEndpoint(apiPath);
+  const builtin = getBooleanFlag(flags, "builtin");
+  const offline = getBooleanFlag(flags, "offline");
+  const refresh = getBooleanFlag(flags, "refresh");
+
+  if (refresh && offline) {
+    usageError("--refresh 与 --offline 不能同时使用");
+  }
+  if (refresh && builtin) {
+    usageError("--refresh 与 --builtin 不能同时使用");
+  }
+
+  if (builtin) {
+    if (bundled) return bundled;
+    usageError(
+      `接口 ${apiPath} 不在内置契约中，--builtin 无法提供；请去掉 --builtin 或先运行 \`list --search\`。`,
+    );
+  }
+
+  const options = contractOptionsForInvoke(config, flags, deps, stderr);
+
+  // 先吃新鲜的详情缓存：`detail <path>` 预热后，invoke 会使用服务端字段。
+  if (!refresh) {
+    const cached = getCachedDetail(apiPath, options);
+    if (cached) {
+      if (cached.warning) writeErr(stderr, `警告：${cached.warning}`);
+      return cached.endpoint;
+    }
+  }
+
+  if (offline) {
+    try {
+      const result = await getDetail(apiPath, { ...options, offline: true });
+      if (result.warning) writeErr(stderr, `警告：${result.warning}`);
+      return result.endpoint;
+    } catch (error) {
+      if (error instanceof CliError && error.type === "usage") {
+        const similar = findSimilarPaths(apiPath);
+        usageError(
+          `离线模式下无法获取接口 ${apiPath} 的契约` +
+            (similar.length > 0 ? `。相近接口：${similar.join(", ")}` : "") +
+            "。请先联网执行 `detail <路径>` 或去掉 --offline。",
+        );
+      }
+      throw error;
+    }
+  }
+
+  // 内置已有且未强制刷新：保持原有离线速度，不额外请求 /detail。
+  if (bundled && !refresh) return bundled;
+
+  try {
+    const result = await getDetail(apiPath, options);
+    if (result.warning) writeErr(stderr, `警告：${result.warning}`);
+    return result.endpoint;
+  } catch (error) {
+    if (bundled) {
+      const reason = error instanceof Error ? error.message : String(error);
+      writeErr(stderr, `警告：服务端契约获取失败（${reason}），已使用内置契约。`);
+      return bundled;
+    }
+    if (error instanceof CliError && error.type === "usage") {
+      const similar = findSimilarPaths(apiPath);
+      usageError(
+        `未找到接口：${apiPath}` +
+          (similar.length > 0 ? `。相近接口：${similar.join(", ")}` : "") +
+          "。可运行 `jlc-openapi-cli list --search <关键词>` 查找，" +
+          `或用 \`jlc-openapi-cli call ${apiPath} --json '<body>'\` 通用调用。`,
+      );
+    }
+    throw error;
+  }
+}
+
 /** 调用已注册接口。 */
 export async function runInvoke(
   apiPath: string,
@@ -484,8 +564,26 @@ export async function runInvoke(
 ): Promise<number> {
   const stderr = deps.stderr ?? process.stderr;
   const cwd = deps.cwd ?? process.cwd();
-  const prepared = prepareRegistered(apiPath, flags, cwd, stderr);
-  return execute(prepared, flags, deps);
+  const split = splitPath(apiPath);
+  const matched = matchEndpointPath(split.path);
+  const normalized = matched
+    ? matched.path
+    : normalizeApiPath(split.path, {
+        knownPaths: allEndpoints().map((endpoint) => endpoint.path),
+      }).path;
+
+  const config = resolveRuntimeConfig({
+    ...(stringValue(flags, "config") ? { configPath: stringValue(flags, "config") as string } : {}),
+    ...(stringValue(flags, "endpoint") ? { endpoint: stringValue(flags, "endpoint") as string } : {}),
+    cwd,
+    ...(deps.homeDir ? { homeDir: deps.homeDir } : {}),
+    ...(deps.env ? { env: deps.env } : {}),
+    allowHttp: getBooleanFlag(flags, "allowHttp"),
+  });
+
+  const def = await resolveEndpointForInvoke(normalized, flags, deps, config, stderr);
+  const prepared = prepareRegistered(def, flags, cwd, stderr, split.query);
+  return execute(prepared, config, flags, deps);
 }
 
 /** 通用兜底调用，用于未注册接口。 */
@@ -495,8 +593,16 @@ export async function runCall(
   deps: InvokeDeps = {},
 ): Promise<number> {
   const cwd = deps.cwd ?? process.cwd();
+  const config = resolveRuntimeConfig({
+    ...(stringValue(flags, "config") ? { configPath: stringValue(flags, "config") as string } : {}),
+    ...(stringValue(flags, "endpoint") ? { endpoint: stringValue(flags, "endpoint") as string } : {}),
+    cwd,
+    ...(deps.homeDir ? { homeDir: deps.homeDir } : {}),
+    ...(deps.env ? { env: deps.env } : {}),
+    allowHttp: getBooleanFlag(flags, "allowHttp"),
+  });
   const prepared = prepareGeneric(apiPath, flags, cwd);
-  return execute(prepared, flags, deps);
+  return execute(prepared, config, flags, deps);
 }
 
 export type { EndpointDef, FetchLike };

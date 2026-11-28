@@ -153,6 +153,108 @@ export function validateEndpoint(endpoint: string, allowHttp: boolean): void {
 }
 
 /**
+ * 读取配置，但不要求 appId/ak/sk 完整。
+ *
+ * - 显式 `--config` 不存在或损坏时仍然抛错；
+ * - 隐式查找时，缺失或损坏返回空配置，让 `list` 可以降级到缓存/内置。
+ */
+export function loadPartialConfig(options: LoadConfigOptions = {}): PartialConfig {
+  const env = options.env ?? process.env;
+  const candidates = resolveConfigCandidates(options);
+
+  let fromFile: PartialConfig = {};
+  if (options.configPath) {
+    const target = candidates[0] as string;
+    if (!fileExists(target)) {
+      throw configError(`指定的配置文件不存在：${target}`);
+    }
+    fromFile = readConfigFile(target);
+  } else {
+    for (const candidate of candidates) {
+      if (!fileExists(candidate)) continue;
+      try {
+        fromFile = readConfigFile(candidate);
+      } catch {
+        fromFile = {};
+      }
+      break;
+    }
+  }
+
+  return {
+    ...(env[ENV_KEYS.appId] || fromFile.appId
+      ? { appId: env[ENV_KEYS.appId] || fromFile.appId }
+      : {}),
+    ...(env[ENV_KEYS.ak] || fromFile.ak ? { ak: env[ENV_KEYS.ak] || fromFile.ak } : {}),
+    ...(env[ENV_KEYS.sk] || fromFile.sk ? { sk: env[ENV_KEYS.sk] || fromFile.sk } : {}),
+    ...(env[ENV_KEYS.endpoint] || fromFile.endpoint
+      ? { endpoint: (env[ENV_KEYS.endpoint] || fromFile.endpoint) as string }
+      : {}),
+  };
+}
+
+export interface ContractRuntimeConfig {
+  appId?: string;
+  ak?: string;
+  endpoint: string;
+}
+
+export interface ContractConfigOptions extends LoadConfigOptions {
+  /** 命令行 `--endpoint` 覆盖。 */
+  endpoint?: string;
+}
+
+/** 契约接口只需要 appId/ak/endpoint，不要求 sk。 */
+export function resolveContractConfig(options: ContractConfigOptions = {}): ContractRuntimeConfig {
+  const partial = loadPartialConfig(options);
+  const endpoint = (options.endpoint || partial.endpoint || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+  validateEndpoint(endpoint, options.allowHttp ?? false);
+  return {
+    ...(partial.appId ? { appId: partial.appId } : {}),
+    ...(partial.ak ? { ak: partial.ak } : {}),
+    endpoint,
+  };
+}
+
+export interface RuntimeConfigOptions {
+  configPath?: string;
+  endpoint?: string;
+  cwd?: string;
+  homeDir?: string;
+  env?: NodeJS.ProcessEnv;
+  allowHttp?: boolean;
+}
+
+/** 业务请求的完整配置；与契约请求共用同一个 endpoint。 */
+export function resolveRuntimeConfig(options: RuntimeConfigOptions = {}): Config {
+  const partial = loadPartialConfig({
+    ...(options.configPath ? { configPath: options.configPath } : {}),
+    ...(options.cwd ? { cwd: options.cwd } : {}),
+    ...(options.homeDir ? { homeDir: options.homeDir } : {}),
+    ...(options.env ? { env: options.env } : {}),
+    allowHttp: options.allowHttp ?? false,
+  });
+
+  const missing = (["appId", "ak", "sk"] as const).filter((key) => !partial[key]);
+  if (missing.length > 0) {
+    throw configError(
+      `缺少必要字段：${missing.join(", ")}。请运行 \`jlc-openapi-cli init\` 或设置环境变量 ` +
+        `${missing.map((key) => ENV_KEYS[key]).join(", ")}。`,
+    );
+  }
+
+  const endpoint = (options.endpoint || partial.endpoint || DEFAULT_ENDPOINT).replace(/\/+$/, "");
+  validateEndpoint(endpoint, options.allowHttp ?? false);
+
+  return {
+    appId: partial.appId as string,
+    ak: partial.ak as string,
+    sk: partial.sk as string,
+    endpoint,
+  };
+}
+
+/**
  * 原子写入配置文件，并尽量把权限设为 0600。
  */
 export function writeConfig(config: Config, filePath: string = homeConfigPath()): string {

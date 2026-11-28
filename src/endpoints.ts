@@ -28,6 +28,10 @@ export const GLOBAL_FLAG_NAMES = new Set([
   "limit",
   "file",
   "signBody",
+  "refresh",
+  "offline",
+  "builtin",
+  "noSkill",
 ]);
 
 function isRemovedPath(candidate: string, removed: readonly string[]): boolean {
@@ -59,6 +63,20 @@ function mergeEndpoint(base: EndpointDef, override: EndpointOverride): EndpointD
     fields: mergeFields(base.fields, override),
   };
   return merged;
+}
+
+export function getOverride(apiPath: string): EndpointOverride | undefined {
+  return OVERRIDES[apiPath];
+}
+
+export function applyOverride(base: EndpointDef, override: EndpointOverride): EndpointDef {
+  return mergeEndpoint(base, override);
+}
+
+/** 对单个接口应用人工校对规则；没有 override 时原样返回。 */
+export function applyOverrides(endpoint: EndpointDef): EndpointDef {
+  const override = getOverride(endpoint.path);
+  return override ? mergeEndpoint(endpoint, override) : endpoint;
 }
 
 function createFromOverride(path: string, override: EndpointOverride): EndpointDef {

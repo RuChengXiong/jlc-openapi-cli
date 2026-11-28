@@ -35,7 +35,8 @@ npm prefix -g   # 确认全局 bin 目录在 PATH 中
 
 现象：`/pcb/order/create` 被转成 `C:/Program Files/Git/pcb/order/create`。
 
-解决：
+CLI 会自动剥离常见的 `C:/Program Files/Git`、`/c/Program Files/Git` 等前缀，通常不需要额外处理。
+如果仍被改写，可设置：
 
 ```bash
 export MSYS_NO_PATHCONV=1
@@ -45,13 +46,13 @@ jlc-openapi-cli pcb/order/create ...
 
 ## 未知参数警告
 
-默认会把文档未声明的参数透传，并打印：
+默认会把契约未声明的参数透传，并打印：
 
 ```text
 警告：未知参数 --foo，已透传。使用 --strict 可禁止未声明参数。
 ```
 
-- 确认字段名是否写错：`jlc-openapi-cli list <路径> --json`。
+- 确认字段名是否写错：`jlc-openapi-cli detail <路径> --json`。
 - 需要严格校验时加 `--strict`。
 - 复杂或未解析的字段可用 `--json-file` 直接传 body。
 
@@ -79,12 +80,24 @@ jlc-openapi-cli pcb/order/create ...
 `customerOrderId` 等 Java Long 可能超过 JS 安全整数范围。输出保持原始数字字面量，
 解析时按字符串处理，不要转成 Number。
 
+## 契约缓存与降级
+
+- 缓存位置：`~/.jlc-openapi-cli/contracts-cache.json`，TTL 6 小时。
+- `list` / `detail` 的输出会标注 `server` / `cache` / `stale-cache` / `bundled`。
+- 看到 `stale-cache`：服务端暂时不可用，正在用过期缓存；只读操作可重试，写操作先确认状态。
+- 看到 `bundled`：服务端和缓存都不可用，正在使用内置 111 条；新接口可能缺失。
+- 强制刷新：`list --refresh` 或 `detail <路径> --refresh`。
+- 完全离线：`list --offline` / `--builtin`；`invoke` 也可加 `--offline`（有缓存/内置时可用）。
+- 缓存目录可自定义：`JLC_OPENAPI_CACHE_DIR=/path`。
+- 缓存只保存契约，不保存 sk。
+
 ## 找不到接口
 
 ```bash
 jlc-openapi-cli list --search <关键词>
-jlc-openapi-cli list <路径>     # 会给出相近路径
+jlc-openapi-cli detail <路径>       # 会给出相近路径
+jlc-openapi-cli list --refresh      # 服务端新增接口时刷新目录
+jlc-openapi-cli list --builtin      # 查看内置 111 条快照
 ```
 
-接口路径来自 `api-docs/` 下的 110 份文档；兼容接口
-`/pcb/order/getOrderPageList` 不在文档中但保留可用。
+接口路径以服务端 `/list` 返回为准；内置快照仅作离线兜底。

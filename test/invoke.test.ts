@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { parseArgs } from "../src/args";
@@ -12,6 +15,7 @@ const ENV = {
   JLC_OPENAPI_ACCESS_KEY: "test-ak",
   JLC_OPENAPI_SECRET_KEY: "test-sk",
   JLC_OPENAPI_ENDPOINT: "https://api.example.com",
+  JLC_OPENAPI_CACHE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "jlc-invoke-cache-")),
 } as NodeJS.ProcessEnv;
 
 const NOW_MS = 1_700_000_000_000;

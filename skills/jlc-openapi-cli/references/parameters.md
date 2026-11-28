@@ -1,5 +1,8 @@
 # 参数写法
 
+参数 schema 来自 `jlc-openapi-cli detail <路径> --json`。服务端契约优先，内置契约兜底；
+`--refresh` 强制刷新，`--offline` 只用缓存/内置，`--builtin` 强制内置。
+
 ## 1. 顶层字段
 
 ```bash
@@ -84,10 +87,10 @@ jlc-openapi-cli /3dp-open/order/submitOrder \
 
 ## 5. 未知参数与 `--strict`
 
-- 默认：文档未声明的参数会透传，并在 stderr 给出警告。这用于文档缺失或服务端新增字段。
+- 默认：契约未声明的参数会透传，并在 stderr 给出警告。这用于服务端新增字段或契约遗漏。
 - `--strict`：未声明参数直接报错，适合确认调用正确性。
 - 人工校对的接口（如 `/pcb/order/getOrderPageList`）默认启用必填校验；
-  其他接口默认不强制必填，避免文档错误阻断调用。
+  其他接口默认不强制必填，避免契约不完整阻断调用。
 - `--no-validate`：跳过必填校验。
 
 ## 6. 完整 JSON body
@@ -113,6 +116,7 @@ jlc-openapi-cli /3dp-open/order/getAllEnableMaterialInfo
 
 ## 8. 文件字段
 
+- 以 `detail --json` 的 `contentType=multipart` 和 `fileFields` 为准。
 - `--file <路径>` 映射到接口的第一个文件字段。
 - 也可用 `--<字段名> <路径>` 精确指定。
 - 非文件字段正常作为表单字段；数组字段重复 append。

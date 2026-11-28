@@ -16,6 +16,7 @@ const ENV = {
   JLC_OPENAPI_ACCESS_KEY: "test-ak",
   JLC_OPENAPI_SECRET_KEY: "test-sk",
   JLC_OPENAPI_ENDPOINT: "https://api.example.com",
+  JLC_OPENAPI_CACHE_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "jlc-multipart-cache-")),
 } as NodeJS.ProcessEnv;
 
 function tempFile(): { dir: string; file: string } {

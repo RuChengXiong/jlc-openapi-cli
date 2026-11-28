@@ -26,6 +26,13 @@ export interface FieldDef {
   confidence?: "high" | "low";
 }
 
+export interface ErrorCodeDef {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
 export interface EndpointDef {
   path: string;
   method: "POST" | "GET";
@@ -40,7 +47,15 @@ export interface EndpointDef {
   strict: boolean;
   /** 兼容保留、不在当前接口文档中的接口。 */
   legacy?: boolean;
-  /** api-docs 下的相对路径。 */
+  /** api-docs 下的相对路径，或服务端契约来源。 */
   source?: string;
   example?: string;
+  /** 服务端契约附带的 agent 使用指引。 */
+  agentGuidance?: string;
+  inputExample?: unknown;
+  outputExample?: unknown;
+  /** 响应字段，仅用于展示，绝不参与请求必填校验。 */
+  outputFields?: FieldDef[];
+  errorCodes?: ErrorCodeDef[];
+  contractSource?: "server" | "cache" | "stale-cache" | "bundled";
 }

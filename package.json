@@ -1,6 +1,6 @@
 {
   "name": "jlc-openapi-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "嘉立创开放平台命令行工具（JLC OpenAPI CLI）",
   "author": "xiongrucheng",
   "repository": {
@@ -26,6 +26,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md",
     "LICENSE"
   ],

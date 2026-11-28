@@ -3,6 +3,15 @@
 所有示例都假设已完成 `jlc-openapi-cli init`。写操作（创建/提交/取消/删除）执行前
 必须向用户确认参数和影响。
 
+调用前建议先查契约：
+
+```bash
+jlc-openapi-cli list --search 订单
+jlc-openapi-cli detail /pcb/order/create --json
+```
+
+`detail` 返回的 `agentGuidance` 必须遵守；`outputExample` / `errorCode` 可用于解释响应。
+
 ## PCB：分页查询订单（兼容旧路径）
 
 ```bash
@@ -54,7 +63,7 @@ jlc-openapi-cli /pcb/order/create \
   --orderReceive.address "某某大厦 14 楼"
 ```
 
-字段很多时建议先用 `list /pcb/order/create --json` 查看完整 schema，或用
+字段很多时建议先用 `jlc-openapi-cli detail /pcb/order/create --json` 查看完整 schema，或用
 `--json-file` 传完整 body。
 
 ## 3DP：提交订单
